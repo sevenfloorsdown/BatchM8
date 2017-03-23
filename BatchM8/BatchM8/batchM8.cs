@@ -35,7 +35,9 @@
 
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Ports;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -55,8 +57,8 @@ namespace sevenfloorsdown
         }
 
         private static settingsJSONutils ini;
-        private static SerialPortManager LineInFeed1;
-        private static SerialPortManager LineInFeed2;
+        private static List<SerialPortManager> LineInFeed;
+        private static List<string> inFeedSwitchValues;
         private static SerialPortManager LineOutFeed;
         private static TcpConnection     InFeedSwitch;
 
@@ -90,6 +92,47 @@ namespace sevenfloorsdown
                             ini.GetSettingString("LogFile", System.Reflection.Assembly.GetEntryAssembly().GetName().Name, "Logging"),
                             ini.GetSettingString("DateTimeFormat", "dd/MM/yyyy hh:mm:ss.fff", "Logging"));
             AppLogger.CurrentLevel = AppLogger.ConvertToLogLevel(ini.GetSettingString("LogLevel", "Verbose", "Logging"));
+        }
+
+        public static bool InitializePorts()
+        {
+            SerialSettings comSettings;
+            PrintLog("Reading InFeed1 settings");
+            LineInFeed = new List<SerialPortManager>();
+            inFeedSwitchValues = new List<string>();
+            string[] section = new string[] { "LineInFeed1", "LineFeed2", "OutFeed" };
+            for (int i = 1; i <= section.Length; i++)
+            {
+                int j = i - 1;
+                try
+                {
+                    comSettings = new SerialSettings();
+                    comSettings.PortName = ini.GetSettingString("COMPort", "COM" + i.ToString(), section[j]);
+                    comSettings.BaudRate = ini.GetSettingInteger("Baudrate", 9600, section[j]);
+                    comSettings.DataBits = ini.GetSettingInteger("Databits", 8, section[j]);
+                    comSettings.Parity = (Parity)(Enum.Parse(typeof(Parity), ini.GetSettingString("Parity", "None", section[j])));
+                    comSettings.StopBits = (StopBits)ini.GetSettingInteger("StopBits", 1, section[j]);
+                    if (i < section.Length) // InFeed
+                    {
+                        inFeedSwitchValues.Add(ini.GetSettingString("SwitchValue", "0" + i.ToString(), section[j]));
+                        LineInFeed.Add(new SerialPortManager(comSettings.PortName));
+                        LineInFeed[j].Settings = comSettings;
+                        LineInFeed[j].NewSerialDataReceived += new EvenHandler<SerialDataEventArgs>();
+                    }
+                    else  // OutFeed
+                    {
+                        LineOutFeed = new SerialPortManager(comSettings.PortName);
+                        LineOutFeed.Settings = comSettings;
+                        LineOutFeed.NewSerialDataReceived += new EventHandler<SerialDataEventArgs>(LineOutFeedNewDataReceived);
+                    }
+                }
+                catch (Exception e)
+                {
+                    ErrorMessage(String.Format("Failed setting serial {0} settings: {1}", section[j], e.Message));
+                    return false;
+                }
+            }
+            return true;
         }
 
         // common error message thingy

@@ -11,11 +11,11 @@ namespace sevenfloorsdown
     public enum LogLevel
     {
         CRITICAL = 0,
-        ERROR = 1,
-        WARNING = 2,
-        INFO = 3,
-        DEBUG = 4,
-        VERBOSE = 5
+        ERROR    = 1,
+        WARNING  = 2,
+        INFO     = 3,
+        DEBUG    = 4,
+        VERBOSE  = 5
     };
 
     public class AppLoggerException : System.Exception
@@ -37,24 +37,27 @@ namespace sevenfloorsdown
     // -----------------------------------------------------------
     public class AppLogger
     {
-        protected static String logNameBase;
+        #region Fields
+        protected static String baseLogName;
         private static String errStr;
 
-        public static LogLevel curLevel { get; set; }
+        public static LogLevel CurrentLevel { get; set; }
         public static Boolean UseSubDirectories { get; set; }
-        public static String exceptionMessage { get { return errStr; } }
+        public static String ExceptionMessage { get { return errStr; } }
         public static String LogPath { get; set; }
         public static String DateTimeFormat { get; set; }
         public static int MultipleAccessTimeInterval { get; set; }
+        #endregion
 
         static AppLogger()
         {
             MultipleAccessTimeInterval = 300; // ms, arbitrary default
-            curLevel = LogLevel.INFO;
+            CurrentLevel = LogLevel.INFO;
             errStr = String.Empty;
         }
 
-        public static LogLevel TranslateLogLevel(string level)
+        #region Methods
+        public static LogLevel ConvertToLogLevel(string level)
         {
             try
             {
@@ -64,10 +67,9 @@ namespace sevenfloorsdown
             {
                 return LogLevel.INFO;
             }
-
         }
 
-        private static String getDatedLogPath()
+        private static String GetDatedLogPath()
         {
             if (UseSubDirectories)
                 return "/" + DateTime.Now.Year.ToString() + "/"
@@ -77,28 +79,26 @@ namespace sevenfloorsdown
                 return "";
         }
 
-        private static String getNewBase()
+        private static String GetNewBaseLogName()
         {
-            return "/" + logNameBase + "_" + DateTime.Now.Year.ToString()
+            return "/" + baseLogName + "_" + DateTime.Now.Year.ToString()
                            + DateTime.Now.Month.ToString("D2")
                            + DateTime.Now.Day.ToString("D2") + "_" + DateTime.Now.TimeOfDay.Hours.ToString("D2") + "00.log";
         }
 
-        public static void start(String logPath, String nameBase, String dateTimeFormat = "dd/MM/yyyy hh:mm:ss.fff", Boolean LogIntoSubDirectories = false)
+        public static void Start(String logPath, String nameBase, String dateTimeFormat = "dd/MM/yyyy hh:mm:ss.fff", Boolean LogIntoSubDirectories = false)
         {
             LogPath = logPath + "/LOG";
-            logNameBase = nameBase;
+            baseLogName = nameBase;
             DateTimeFormat = dateTimeFormat;
             UseSubDirectories = LogIntoSubDirectories;
             Log(LogLevel.INFO, "START");
         }
 
-        private static String exceptionString(Exception e)
+        private static void ExtractExceptionString(Exception e)
         {
-            String eMsg = e.Message;
-            if (curLevel >= LogLevel.DEBUG)
-                eMsg += (Environment.NewLine + e.ToString());
-            return eMsg;
+            if (CurrentLevel >= LogLevel.DEBUG)
+                errStr = String.Format("{0} {1} {2}", e.Message, Environment.NewLine, e.ToString());
         }
 
         // ----------------------------------------------
@@ -106,7 +106,7 @@ namespace sevenfloorsdown
         // ----------------------------------------------
         public static void Log(LogLevel level, String msg)
         {
-            String finalPath = LogPath + getDatedLogPath();
+            String finalPath = LogPath + GetDatedLogPath();
             DirectoryInfo dr = null;
             if (Directory.Exists(finalPath))
                 dr = new DirectoryInfo(finalPath);
@@ -119,17 +119,17 @@ namespace sevenfloorsdown
                 // don't have to distinguish which exception it is
                 catch (Exception e)
                 {
-                    errStr = exceptionString(e);
+                    ExtractExceptionString(e);
                 }
 
             if (dr != null)
                 try
                 {
-                    EventWaitHandle waitHandle = new EventWaitHandle(true, EventResetMode.AutoReset, "APPWIDE_LOGFILE");
+                    EventWaitHandle waitHandle = new EventWaitHandle(true, EventResetMode.AutoReset, "APPWIDELOGFILE");
                     waitHandle.WaitOne(MultipleAccessTimeInterval); // Check if other processes are using the filename first and wait for it to let go
-                    using (StreamWriter w = File.AppendText(finalPath + getNewBase()))
+                    using (StreamWriter w = File.AppendText(finalPath + GetNewBaseLogName()))
                     {
-                        if (level <= curLevel)
+                        if (level <= CurrentLevel)
                             try
                             {
                                 w.WriteLine(String.Format("{0} {1}: {2}", DateTime.Now.ToString(DateTimeFormat), level.ToString(), msg));
@@ -137,7 +137,7 @@ namespace sevenfloorsdown
                             }
                             catch (Exception e)
                             {
-                                errStr = exceptionString(e);
+                                ExtractExceptionString(e);
                             }
                     }
                 }
@@ -153,9 +153,10 @@ namespace sevenfloorsdown
             if (errStr != String.Empty) throw new AppLoggerException(errStr);
         }
 
-        public static void stop()
+        public static void Stop()
         {
             Log(LogLevel.INFO, "STOP");
         }
+        #endregion
     }
 }

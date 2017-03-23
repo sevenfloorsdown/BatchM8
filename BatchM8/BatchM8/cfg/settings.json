@@ -8,12 +8,25 @@
   "LineInFeed1": {
     "SwitchValue": "01",
     "COMPort": "COM1",
-    "Baudrate": 9600
+    "Baudrate": 9600,
+    "Databits": 8,
+    "Parity": "None",
+    "StopBits": 1
   },
   "LineInFeed2": {
     "SwitchValue": "02",
     "COMPort": "COM2",
-    "Baudrate": 9600
+    "Baudrate": 9600,
+    "Databits": 8,
+    "Parity": "None",
+    "StopBits": 1
+  },
+  "OutFeed": {
+    "COMPort": "COM3",
+    "Baudrate": 9600,
+    "Databits": 8,
+    "Parity": "None",
+    "StopBits": 1
   },
   "InFeedSwitch": {
     "SocketType": "SERVER",

@@ -11,15 +11,17 @@ using System.Threading;
 
 namespace sevenfloorsdown
 {
-    public enum socketTransactorType { server, client };
+    public enum SocketTransactorType { server, client };
     
     public delegate void TcpEventHandler(object sender, EventArgs e);
 
     public class StateObject
     {
+        #region Fields
         public Socket workSocket = null;
-        public byte[] buffer; // TODO: revisit this later on!
+        public byte[] buffer;
         public StringBuilder sb = new StringBuilder();
+        #endregion
 
         public StateObject(int BufferSize)
         {
@@ -27,10 +29,10 @@ namespace sevenfloorsdown
         }
     }
 
-
     public class TcpConnection
     {
-        public socketTransactorType ConnectionType { get; set; }
+        #region Fields
+        public SocketTransactorType ConnectionType { get; set; }
         public String    ConnectionName    { get; set; }
         public String    IpAddress         { get; set; }
         public int       PortNumber        { get; set; }
@@ -54,26 +56,34 @@ namespace sevenfloorsdown
         private bool RunningInBG;
         private bool AbruptDisconnect;
         private int ReconnectRetry;
+        #endregion
 
+        #region Events
         private ManualResetEvent connectDone = new ManualResetEvent(false);
         private ManualResetEvent sendDone    = new ManualResetEvent(false);
         private ManualResetEvent allDone     = new ManualResetEvent(false);
         private ManualResetEvent receiveDone = new ManualResetEvent(false);
+        #endregion
 
+        #region Delegates
         public event TcpEventHandler TcpConnected    = delegate { };
         public event TcpEventHandler TcpDisconnected = delegate { };
         public event TcpEventHandler DataReceived    = delegate { };
         public event TcpEventHandler GeneralUseEvent = delegate { }; // in case you want something for *anything* else you may think of
+        #endregion
 
+        #region Event Handlers
         protected virtual void OnTcpConnected(EventArgs e)    
-        { 
-            if (TcpConnected != null) TcpConnected(this, e);
+        {
+            //if (TcpConnected != null) TcpConnected(this, e);
+            TcpConnected?.Invoke(this, e);
             ReconnectRetry = 0;
         }
 
         protected virtual void OnTcpDisconnected(EventArgs e) 
-        { 
-            if (TcpDisconnected != null) TcpDisconnected(this, e);
+        {
+            //if (TcpDisconnected != null) TcpDisconnected(this, e);
+            TcpDisconnected?.Invoke(this, e);
             if (AbruptDisconnect)
             {
                 while (ReconnectRetry > 0)
@@ -86,9 +96,9 @@ namespace sevenfloorsdown
         }
         protected virtual void OnDataReceived(EventArgs e)    { if (DataReceived    != null) DataReceived(this, e);    }
         protected virtual void OnGeneralUseEvent(EventArgs e) { if (GeneralUseEvent != null) GeneralUseEvent(this, e); }
+        #endregion
 
-
-        public TcpConnection(socketTransactorType myConnection,
+        public TcpConnection(SocketTransactorType myConnection,
                              string     ipAddress = "0.0.0.0",
                              uint       portNum   = 0,
                              bool       useBytes  = false)
@@ -127,7 +137,7 @@ namespace sevenfloorsdown
         private void openTCPConnection()
         {
             string msg = IpAddress + ":" + PortNumber.ToString();
-            if (ConnectionType == socketTransactorType.server)
+            if (ConnectionType == SocketTransactorType.server)
             {
                 IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Parse(IpAddress), PortNumber);
                 Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -155,7 +165,7 @@ namespace sevenfloorsdown
                                                  ConnectionType.ToString(), msg, e.Message));
                 }
             }
-            else if (ConnectionType == socketTransactorType.client)
+            else if (ConnectionType == SocketTransactorType.client)
             {
                 string cxnMsg = String.Empty;
                 try
@@ -308,7 +318,7 @@ namespace sevenfloorsdown
                              String.Format("{0} sent {1} bytes",
                              ConnectionType.ToString() + " " + msg,
                              sentBytes.ToString()));
-                if (ConnectionType == socketTransactorType.client) sendDone.Set();
+                if (ConnectionType == SocketTransactorType.client) sendDone.Set();
             }
             catch (Exception e)
             {
@@ -359,11 +369,12 @@ namespace sevenfloorsdown
                         if (MessageEncoding == Encoding.ASCII)
                             state.sb.Append(Encoding.ASCII.GetString(state.buffer, 0, bytesRead));
                     }
-                    if (ConnectionType == socketTransactorType.client) 
+                    if (ConnectionType == SocketTransactorType.client) 
                         handler.BeginReceive(state.buffer, 0, BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
 
                     if (UseBytes)
-                    { // remember to check if header/footer is empty
+                    { 
+                        // remember to check if header/footer is empty
                         if (ByteHeader.SequenceEqual(state.buffer.Take(ByteHeader.Length)) &&
                             ByteFooter.Reverse().SequenceEqual(state.buffer.Reverse().Take(ByteFooter.Length)))
                             state.buffer.CopyTo(tcpByteResponse, 0);
@@ -398,7 +409,7 @@ namespace sevenfloorsdown
                             OnDataReceived(EventArgs.Empty);
                         }
                     }
-                    if (ConnectionType == socketTransactorType.server)
+                    if (ConnectionType == SocketTransactorType.server)
                         handler.BeginReceive(state.buffer, 0, BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
                 }
                 else

@@ -13,17 +13,20 @@ namespace sevenfloorsdown
 {
     class settingsJSONutils
     {
-        public string SettingsFile { get { return settingsFile; } set { loadSettingsFile(value); } }
+        #region Properties
+        public string SettingsFile { get { return settingsFile; } set { LoadSettingsFile(value); } }
         public JObject JSONSettings { get; set; }
+        #endregion
 
         private string settingsFile;
         
         public settingsJSONutils(string jsonFile)
         {
-            loadSettingsFile(jsonFile);
+            LoadSettingsFile(jsonFile);
         }
 
-        private void loadSettingsFile(string jsonFile)
+        #region Methods
+        private void LoadSettingsFile(string jsonFile)
         {
             using (StreamReader r = new StreamReader(jsonFile))
             {
@@ -32,7 +35,7 @@ namespace sevenfloorsdown
             }
         }
 
-        public string getSettingString(string setting, string valueIfNotFound, params string[] sections)
+        public string GetSettingString(string setting, string valueIfNotFound, params string[] sections)
         { 
             if (sections.Length < 1)
             {
@@ -50,7 +53,7 @@ namespace sevenfloorsdown
             return (string)settingPath[setting].ToObject(typeof(string));
         }
 
-        public int getSettingInteger(string setting, int valueIfNotFound, params string[] sections)
+        public int GetSettingInteger(string setting, int valueIfNotFound, params string[] sections)
         {
             if (sections.Length < 1)
             {
@@ -69,7 +72,7 @@ namespace sevenfloorsdown
             return (int)settingPath[setting].ToObject(typeof(int));
         }
 
-        public float getSettingInteger(string setting, float valueIfNotFound, params string[] sections)
+        public float GetSettingInteger(string setting, float valueIfNotFound, params string[] sections)
         {
             if (sections.Length < 1)
             {
@@ -88,7 +91,7 @@ namespace sevenfloorsdown
             return (float)settingPath[setting].ToObject(typeof(float));
         }
 
-        public bool getSettingBoolean(string setting, bool valueIfNotFound, params string[] sections)
+        public bool GetSettingBoolean(string setting, bool valueIfNotFound, params string[] sections)
         {
             if (sections.Length < 1)
             {
@@ -108,7 +111,7 @@ namespace sevenfloorsdown
             else return false;
         }
 
-        public JToken getSettingSection(string setting, params string[] sections)
+        public JToken GetSettingSection(string setting, params string[] sections)
         {
             if (sections.Length < 1)
             {
@@ -127,4 +130,5 @@ namespace sevenfloorsdown
             return settingPath[setting];
         }
     }
+    #endregion
 }
