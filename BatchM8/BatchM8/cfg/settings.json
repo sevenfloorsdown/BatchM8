@@ -1,0 +1,25 @@
+{
+  "Root": "D:\\DSITec\\",
+  "Logging": {
+    "LogLevel": "Verbose",
+    "LogFile": "batchm8",
+    "DateTimeFormat": "dd/MM/yyyy hh:mm:ss.fff"
+  },
+  "LineInFeed1": {
+    "SwitchValue": "01",
+    "COMPort": "COM1",
+    "Baudrate": 9600
+  },
+  "LineInFeed2": {
+    "SwitchValue": "02",
+    "COMPort": "COM2",
+    "Baudrate": 9600
+  },
+  "InFeedSwitch": {
+    "SocketType": "SERVER",
+    "IPAddress": "127.0.0.1",
+    "PortNumber": 6000,
+    "NumberConntections": 1,
+    "HeartbeatMessage": "9999"
+  }
+}
