@@ -43,6 +43,24 @@ using System.Threading;
 
 namespace sevenfloorsdown
 {
+    class InFeed
+    {
+        private string inFeedDataBuffer = "";
+        public SerialPortManager Port { get; set; }
+        public string SwitchValue { get; set; }
+        public string InFeedData { get; set; }
+        public string Header { get; set; }
+        public string Footer { get; set; }
+        public string MessageFormat { get; set; }
+
+        public InFeed(SerialSettings settings, string switchValue)
+        {
+            Port = new SerialPortManager(settings.PortName);
+            Port.Settings = settings;
+            SwitchValue = switchValue;
+        }
+    }
+
     class BatchM8
     {
         static Mutex mutex = new Mutex(true, "1659aff2-7d2c-48f5-8557-a4efd694d16d");
@@ -57,8 +75,7 @@ namespace sevenfloorsdown
         }
 
         private static settingsJSONutils ini;
-        private static List<SerialPortManager> LineInFeed;
-        private static List<string> inFeedSwitchValues;
+        private static List<InFeed> LineInFeeds;
         private static SerialPortManager LineOutFeed;
         private static TcpConnection     InFeedSwitch;
 
@@ -92,18 +109,24 @@ namespace sevenfloorsdown
                             ini.GetSettingString("LogFile", System.Reflection.Assembly.GetEntryAssembly().GetName().Name, "Logging"),
                             ini.GetSettingString("DateTimeFormat", "dd/MM/yyyy hh:mm:ss.fff", "Logging"));
             AppLogger.CurrentLevel = AppLogger.ConvertToLogLevel(ini.GetSettingString("LogLevel", "Verbose", "Logging"));
+
+            if (InitializePorts())
+            {
+
+            }
+
+            ProgramEnd();
         }
 
         public static bool InitializePorts()
         {
             SerialSettings comSettings;
-            PrintLog("Reading InFeed1 settings");
-            LineInFeed = new List<SerialPortManager>();
-            inFeedSwitchValues = new List<string>();
-            string[] section = new string[] { "LineInFeed1", "LineFeed2", "OutFeed" };
+            LineInFeeds = new List<InFeed>();
+            string[] section = new string[] { "LineInFeed1", "LineInFeed2", "OutFeed" };
             for (int i = 1; i <= section.Length; i++)
             {
                 int j = i - 1;
+                PrintLog("Setting " + section[j]);
                 try
                 {
                     comSettings = new SerialSettings();
@@ -114,10 +137,15 @@ namespace sevenfloorsdown
                     comSettings.StopBits = (StopBits)ini.GetSettingInteger("StopBits", 1, section[j]);
                     if (i < section.Length) // InFeed
                     {
-                        inFeedSwitchValues.Add(ini.GetSettingString("SwitchValue", "0" + i.ToString(), section[j]));
-                        LineInFeed.Add(new SerialPortManager(comSettings.PortName));
-                        LineInFeed[j].Settings = comSettings;
-                        LineInFeed[j].NewSerialDataReceived += new EvenHandler<SerialDataEventArgs>();
+                        InFeed tmpInFeed = new InFeed(comSettings, ini.GetSettingString("SwitchValue", "0" + i.ToString(), section[j]));
+                        LineInFeeds.Add(tmpInFeed);
+                        LineInFeeds[j].Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", section[j]));
+                        LineInFeeds[j].Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", section[j]));
+                        LineInFeeds[j].MessageFormat = ini.GetSettingString("MessageFormat", "", section[j]);
+                        if (i == 1)
+                            LineInFeeds[j].Port.NewSerialDataReceived += new EventHandler<SerialDataEventArgs>(LineInFeed1NewDataReceived);
+                        if (i == 2)
+                            LineInFeeds[j].Port.NewSerialDataReceived += new EventHandler<SerialDataEventArgs>(LineInFeed2NewDataReceived);
                     }
                     else  // OutFeed
                     {
@@ -132,7 +160,85 @@ namespace sevenfloorsdown
                     return false;
                 }
             }
+
+            string _section = "InFeedSwitch";
+            string switchStr = ini.GetSettingString("ShortDesc", "Infeed switch", _section);
+            PrintLog("Setting " + switchStr);
+            try
+            {
+                SocketTransactorType cxnType = (ini.GetSettingString("Sockettype", "SERVER", _section).ToUpper() == "SERVER") ?
+                                                SocketTransactorType.server : SocketTransactorType.client;
+                InFeedSwitch = new TcpConnection(cxnType,
+                                   ini.GetSettingString("IPAddress", "0.0.0.0", _section),
+                                   (uint)ini.GetSettingInteger("PortNumber", 0, _section))
+                {
+                    MaxNumConnections = ini.GetSettingInteger("MaxNumberConnections", 1, _section),
+                    Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", _section)),
+                    Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", _section))
+                };
+                InFeedSwitch.TcpConnected += new TcpEventHandler(InFeedSwitchConnectedListener);
+                InFeedSwitch.TcpDisconnected += new TcpEventHandler(InFeedSwitchDisconnectedListener);
+                InFeedSwitch.DataReceived += new TcpEventHandler(InFeedSwitchDataReceiver);
+            }
+            catch (Exception e)
+            {
+                ErrorMessage(String.Format("Failed setting {0} settings: {1}", switchStr, e.Message));
+                return false;
+            }
             return true;
+        }
+
+        static void LineInFeed1NewDataReceived(object sender, SerialDataEventArgs e) { LineInFeedCommonDataReceived(1, e); }
+        static void LineInFeed2NewDataReceived(object sender, SerialDataEventArgs e) { LineInFeedCommonDataReceived(2, e); }
+
+        static void LineInFeedCommonDataReceived(int index, SerialDataEventArgs e)
+        {
+            // collect data until delimiter comes in
+            string outputAsText = BytesToString(e.Data);
+            PrintLog("Received " + outputAsText);
+        }
+
+        static void LineOutFeedNewDataReceived(object sender, SerialDataEventArgs e)
+        {
+            /*string outputAsText = BytesToString(e.Data);
+            serialBuffer.AddRange(new List<byte>(e.Data));
+            printLog("Received " + outputAsText);*/
+        }
+
+        private static void InFeedSwitchConnectedListener(object sender, EventArgs e)
+        {
+            TcpConnection current = (TcpConnection)sender;
+            if (current == null) return;
+            PrintLog(String.Format("{0}: {1} connected", current.IpAddress.ToString(), current.PortNumber));
+        }
+
+        private static void InFeedSwitchDisconnectedListener(object sender, EventArgs e)
+        {
+            TcpConnection current = (TcpConnection)sender;
+            if (current == null) return;
+            PrintLog(String.Format("{0}: {1} disconnected", current.IpAddress.ToString(), current.PortNumber));
+
+            PrintLog("Attempting to reconnect");
+            InFeedSwitch.OpenConnection();
+        }
+
+        private static void InFeedSwitchDataReceiver(object sender, EventArgs e)
+        {
+            TcpConnection current = (TcpConnection)sender;
+            if (current == null) return;
+            string payload = current.Response;
+            PrintLog(String.Format("{0}:{1} received {2}", current.IpAddress.ToString(), current.PortNumber, payload));
+            ProcessInFeedSwitchMessage(payload);
+        }
+
+        private static void ProcessInFeedSwitchMessage(string payload)
+        {
+
+        }
+
+        public static string BytesToString(byte[] rawData)
+        {
+            return BitConverter.ToString(rawData).Replace("-", " ");
         }
 
         // common error message thingy
@@ -171,6 +277,8 @@ namespace sevenfloorsdown
             BeaconList.Clear();
             dbCxn.CloseConnection();
             satCxn.CloseConnection();*/
+            InFeedSwitch.CloseConnection();
+            PrintLog("Exiting...");
             Environment.Exit(0);
         }
     }

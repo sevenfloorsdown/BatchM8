@@ -1,5 +1,5 @@
 {
-  "Root": "D:\\DSITec\\",
+  "Root": "C:\\DSITec\\",
   "Logging": {
     "LogLevel": "Verbose",
     "LogFile": "batchm8",
@@ -7,32 +7,42 @@
   },
   "LineInFeed1": {
     "SwitchValue": "01",
-    "COMPort": "COM1",
+    "COMPort": "COM5",
     "Baudrate": 9600,
     "Databits": 8,
     "Parity": "None",
-    "StopBits": 1
+    "StopBits": 1,
+    "Header": "<STX>",
+    "Footer": "<CR><LF>",
+    "MessageFormat": "[0-9]{6},[0-9]{4} "
   },
   "LineInFeed2": {
     "SwitchValue": "02",
-    "COMPort": "COM2",
+    "COMPort": "COM7",
     "Baudrate": 9600,
     "Databits": 8,
     "Parity": "None",
-    "StopBits": 1
+    "StopBits": 1,
+    "Header": "<STX>",
+    "Footer": "<CR><LF>",
+    "MessageFormat": "[0-9]{6},[0-9]{4} "
   },
   "OutFeed": {
-    "COMPort": "COM3",
+    "COMPort": "COM6",
     "Baudrate": 9600,
     "Databits": 8,
     "Parity": "None",
     "StopBits": 1
   },
   "InFeedSwitch": {
+    "ShortDesc": "Infeed Camera",
     "SocketType": "SERVER",
     "IPAddress": "127.0.0.1",
     "PortNumber": 6000,
-    "NumberConntections": 1,
-    "HeartbeatMessage": "9999"
+    "Header": "<STX>",
+    "Footer": "<ETX>",
+    "MaxNumberConnections": 1,
+    "HeartbeatMessage": "9999",
+    "TimeoutSec": 30
   }
 }
