@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.26228.9
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BatchM8", "BatchM8\BatchM8.csproj", "{1659AFF2-7D2C-48F5-8557-A4EFD694D16D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BatchM8UnitTests", "BatchM8UnitTests\BatchM8UnitTests.csproj", "{0391933E-9509-48C7-A1E6-B9C849B22C4E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{1659AFF2-7D2C-48F5-8557-A4EFD694D16D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1659AFF2-7D2C-48F5-8557-A4EFD694D16D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1659AFF2-7D2C-48F5-8557-A4EFD694D16D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0391933E-9509-48C7-A1E6-B9C849B22C4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0391933E-9509-48C7-A1E6-B9C849B22C4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0391933E-9509-48C7-A1E6-B9C849B22C4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0391933E-9509-48C7-A1E6-B9C849B22C4E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

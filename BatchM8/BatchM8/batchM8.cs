@@ -45,7 +45,7 @@ namespace sevenfloorsdown
 {
     class InFeed
     {
-        private string inFeedDataBuffer = "";
+        private string buffer = string.Empty;
         public SerialPortManager Port { get; set; }
         public string SwitchValue { get; set; }
         public string InFeedData { get; set; }
@@ -58,6 +58,48 @@ namespace sevenfloorsdown
             Port = new SerialPortManager(settings.PortName);
             Port.Settings = settings;
             SwitchValue = switchValue;
+        }
+
+        public bool BufferDataReady(string data)
+        {
+            int s = data.IndexOf(Header);
+            int e = data.IndexOf(Footer);
+            bool nobuf = buffer == string.Empty;
+
+            if (s > -1)
+            {
+                if (e > -1 && e > s)
+                {
+                    InFeedData = data.Substring(s, e - s + 1);
+                    // check message validity first!
+                    buffer = string.Empty;
+                    return true;
+                }
+                else if (e == -1)
+                {
+                    InFeedData = data.Substring(s);
+                    return false;
+                }
+            }
+            else
+            {
+                if (!nobuf)
+                {
+                    if (e > -1)
+                    {
+                        InFeedData = data.Substring(0, e + 1);
+                        // check message validity first!
+                        buffer = string.Empty;
+                        return true;
+                    }
+                    else
+                    {
+                        buffer += data;
+                        return false;
+                    }
+                }
+            }
+            return false;
         }
     }
 
@@ -195,7 +237,11 @@ namespace sevenfloorsdown
         {
             // collect data until delimiter comes in
             string outputAsText = BytesToString(e.Data);
-            PrintLog("Received " + outputAsText);
+            PrintLog(String.Format("Infeed {0} Received {1}", (index+1).ToString(),  outputAsText));
+            if (LineInFeeds[index].BufferDataReady(outputAsText))
+            {
+                PrintLog(String.Format("Infeed {0} updated with {1}", (index+1).ToString(), LineInFeeds[index].InFeedData));
+            }
         }
 
         static void LineOutFeedNewDataReceived(object sender, SerialDataEventArgs e)
@@ -233,7 +279,7 @@ namespace sevenfloorsdown
 
         private static void ProcessInFeedSwitchMessage(string payload)
         {
-
+            // parse message; also do the switching thing to outfeed here
         }
 
         public static string BytesToString(byte[] rawData)
