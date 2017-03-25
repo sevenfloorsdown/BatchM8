@@ -8,7 +8,7 @@ namespace sevenfloorsdown
     /**
      * Translate some strings into hex bytes to send later on
      **/
-    class StringUtils
+    public class StringUtils
     {
         public static string TranslateAsASCII(string input)
         {

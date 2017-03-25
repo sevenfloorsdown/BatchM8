@@ -1,0 +1,16 @@
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\bin\Debug\BatchM8.exe.config
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\bin\Debug\BatchM8.exe
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\bin\Debug\BatchM8.pdb
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\bin\Debug\Newtonsoft.Json.dll
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\bin\Debug\Newtonsoft.Json.xml
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\obj\Debug\BatchM8.csprojResolveAssemblyReference.cache
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\obj\Debug\BatchM8.exe
+C:\Users\C.Rivera\Documents\CsharpCode\Mi-Batch\Mi-Batch\obj\Debug\BatchM8.pdb
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\bin\Debug\BatchM8.exe.config
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\bin\Debug\BatchM8.exe
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\bin\Debug\BatchM8.pdb
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\bin\Debug\Newtonsoft.Json.dll
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\bin\Debug\Newtonsoft.Json.xml
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\obj\Debug\BatchM8.exe
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\obj\Debug\BatchM8.pdb
+C:\Users\C.Rivera\Documents\SW_REPO\CSharp\BatchM8\BatchM8\obj\Debug\BatchM8.csprojResolveAssemblyReference.cache

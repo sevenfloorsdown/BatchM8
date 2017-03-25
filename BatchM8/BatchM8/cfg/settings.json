@@ -14,7 +14,11 @@
     "StopBits": 1,
     "Header": "<STX>",
     "Footer": "<CR><LF>",
-    "MessageFormat": "[0-9]{6},[0-9]{4} "
+    "PLULength": 6,
+    "PPKLength": 5,
+    "Comment1": "Make sure PLULength and PPKLength-1 match the regex below;",
+    "Comment2": "that is {PLULength, PLULength} and {PPKLength-1, PPKLength-1}",
+    "MessageFormat": "^[0-9a-zA-z]{6,6},[0-9]{4,4} $"
   },
   "LineInFeed2": {
     "SwitchValue": "02",
@@ -25,14 +29,23 @@
     "StopBits": 1,
     "Header": "<STX>",
     "Footer": "<CR><LF>",
-    "MessageFormat": "[0-9]{6},[0-9]{4} "
+    "PLULength": 6,
+    "PPKLength": 5,
+    "Comment1": "Make sure PLULength and PPKLength-1 match the regex below;",
+    "Comment2": "that is {PLULength, PLULength} and {PPKLength-1, PPKLength-1}",
+    "MessageFormat": "^[0-9a-zA-z]{6,6},[0-9]{4,4} $"
   },
   "OutFeed": {
-    "COMPort": "COM6",
+    "COMPort": "COM9",
     "Baudrate": 9600,
     "Databits": 8,
     "Parity": "None",
-    "StopBits": 1
+    "StopBits": 1,
+    "Header": "<STX>",
+    "Footer": "<ETX>",
+    "PLULength": 5,
+    "PPKLength": 4,
+    "FixedAsciiData": "abcdef"
   },
   "InFeedSwitch": {
     "ShortDesc": "Infeed Camera",

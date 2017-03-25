@@ -76,6 +76,8 @@
       <Link>utils\tcpConnection.cs</Link>
     </Compile>
     <Compile Include="batchM8.cs" />
+    <Compile Include="outfeed.cs" />
+    <Compile Include="infeed.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

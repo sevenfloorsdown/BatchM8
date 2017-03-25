@@ -40,68 +40,10 @@ using System.IO;
 using System.IO.Ports;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Timers;
 
 namespace sevenfloorsdown
 {
-    class InFeed
-    {
-        private string buffer = string.Empty;
-        public SerialPortManager Port { get; set; }
-        public string SwitchValue { get; set; }
-        public string InFeedData { get; set; }
-        public string Header { get; set; }
-        public string Footer { get; set; }
-        public string MessageFormat { get; set; }
-
-        public InFeed(SerialSettings settings, string switchValue)
-        {
-            Port = new SerialPortManager(settings.PortName);
-            Port.Settings = settings;
-            SwitchValue = switchValue;
-        }
-
-        public bool BufferDataReady(string data)
-        {
-            int s = data.IndexOf(Header);
-            int e = data.IndexOf(Footer);
-            bool nobuf = buffer == string.Empty;
-
-            if (s > -1)
-            {
-                if (e > -1 && e > s)
-                {
-                    InFeedData = data.Substring(s, e - s + 1);
-                    // check message validity first!
-                    buffer = string.Empty;
-                    return true;
-                }
-                else if (e == -1)
-                {
-                    InFeedData = data.Substring(s);
-                    return false;
-                }
-            }
-            else
-            {
-                if (!nobuf)
-                {
-                    if (e > -1)
-                    {
-                        InFeedData = data.Substring(0, e + 1);
-                        // check message validity first!
-                        buffer = string.Empty;
-                        return true;
-                    }
-                    else
-                    {
-                        buffer += data;
-                        return false;
-                    }
-                }
-            }
-            return false;
-        }
-    }
 
     class BatchM8
     {
@@ -116,10 +58,13 @@ namespace sevenfloorsdown
             CTRL_SHUTDOWN_EVENT
         }
 
+        private static bool quitLoops = false;
         private static settingsJSONutils ini;
         private static List<InFeed> LineInFeeds;
-        private static SerialPortManager LineOutFeed;
-        private static TcpConnection     InFeedSwitch;
+        private static OutFeed LineOutFeed;
+        private static TcpConnection InFeedSwitch;
+        private static string HeartbeatMessage;
+        private static System.Timers.Timer InFeedSwitchTimer;
 
         [DllImport("Kernel32")]
         public static extern bool SetConsoleCtrlHandler(HandlerRoutine Handler, bool Add);
@@ -154,10 +99,12 @@ namespace sevenfloorsdown
 
             if (InitializePorts())
             {
+                PrintLog("Starting infeeds and outfeed");
+                foreach (InFeed x in LineInFeeds) x.Port.StartListening();
+                LineOutFeed.Port.StartListening();
 
+                while (!quitLoops) { } // let the event handlers do their thing
             }
-
-            ProgramEnd();
         }
 
         public static bool InitializePorts()
@@ -171,19 +118,26 @@ namespace sevenfloorsdown
                 PrintLog("Setting " + section[j]);
                 try
                 {
-                    comSettings = new SerialSettings();
-                    comSettings.PortName = ini.GetSettingString("COMPort", "COM" + i.ToString(), section[j]);
-                    comSettings.BaudRate = ini.GetSettingInteger("Baudrate", 9600, section[j]);
-                    comSettings.DataBits = ini.GetSettingInteger("Databits", 8, section[j]);
-                    comSettings.Parity = (Parity)(Enum.Parse(typeof(Parity), ini.GetSettingString("Parity", "None", section[j])));
-                    comSettings.StopBits = (StopBits)ini.GetSettingInteger("StopBits", 1, section[j]);
+                    comSettings = new SerialSettings()
+                    {
+                        PortName = ini.GetSettingString("COMPort", "COM" + i.ToString(), section[j]),
+                        BaudRate = ini.GetSettingInteger("Baudrate", 9600, section[j]),
+                        DataBits = ini.GetSettingInteger("Databits", 8, section[j]),
+                        Parity = (Parity)(Enum.Parse(typeof(Parity), ini.GetSettingString("Parity", "None", section[j]))),
+                        StopBits = (StopBits)ini.GetSettingInteger("StopBits", 1, section[j])
+                    };
                     if (i < section.Length) // InFeed
                     {
-                        InFeed tmpInFeed = new InFeed(comSettings, ini.GetSettingString("SwitchValue", "0" + i.ToString(), section[j]));
+                        InFeed tmpInFeed = new InFeed(comSettings, ini.GetSettingString("SwitchValue", "0" + i.ToString(), section[j]))
+                        {
+                            Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", section[j])),
+                            Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", section[j])),
+                            MessageFormat = ini.GetSettingString("MessageFormat", "", section[j]),
+                            PLULength = ini.GetSettingInteger("PLULength", 6, section[j]),
+                            PPKLength = ini.GetSettingInteger("PPKLength", 5, section[j])
+                        };
                         LineInFeeds.Add(tmpInFeed);
-                        LineInFeeds[j].Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", section[j]));
-                        LineInFeeds[j].Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", section[j]));
-                        LineInFeeds[j].MessageFormat = ini.GetSettingString("MessageFormat", "", section[j]);
+
                         if (i == 1)
                             LineInFeeds[j].Port.NewSerialDataReceived += new EventHandler<SerialDataEventArgs>(LineInFeed1NewDataReceived);
                         if (i == 2)
@@ -191,9 +145,16 @@ namespace sevenfloorsdown
                     }
                     else  // OutFeed
                     {
-                        LineOutFeed = new SerialPortManager(comSettings.PortName);
-                        LineOutFeed.Settings = comSettings;
-                        LineOutFeed.NewSerialDataReceived += new EventHandler<SerialDataEventArgs>(LineOutFeedNewDataReceived);
+                        LineOutFeed = new OutFeed(comSettings)
+                        {
+                            Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", section[j])),
+                            Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", section[j])),
+                            OutputPLULength = ini.GetSettingInteger("PLULength", 6, section[j]),
+                            OutputPPKLength = ini.GetSettingInteger("PPKLength", 5, section[j]),
+                            FixedAsciiData = ini.GetSettingString("FixedAsciiData", "abcdef", section[j])
+                        };
+                        LineOutFeed.Port.NewSerialDataReceived += new EventHandler<SerialDataEventArgs>(LineOutFeedNewDataReceived);
+
                     }
                 }
                 catch (Exception e)
@@ -216,8 +177,10 @@ namespace sevenfloorsdown
                 {
                     MaxNumConnections = ini.GetSettingInteger("MaxNumberConnections", 1, _section),
                     Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", _section)),
-                    Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", _section))
+                    Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", _section))              
                 };
+                int timeout = ini.GetSettingInteger("TimeoutSec", 30, _section) * 1000;
+                InFeedSwitchTimer = new System.Timers.Timer(timeout);
                 InFeedSwitch.TcpConnected += new TcpEventHandler(InFeedSwitchConnectedListener);
                 InFeedSwitch.TcpDisconnected += new TcpEventHandler(InFeedSwitchDisconnectedListener);
                 InFeedSwitch.DataReceived += new TcpEventHandler(InFeedSwitchDataReceiver);
@@ -227,6 +190,8 @@ namespace sevenfloorsdown
                 ErrorMessage(String.Format("Failed setting {0} settings: {1}", switchStr, e.Message));
                 return false;
             }
+
+            HeartbeatMessage = ini.GetSettingString("HeartbeatMessage", "xxxx", section);
             return true;
         }
 
@@ -238,17 +203,17 @@ namespace sevenfloorsdown
             // collect data until delimiter comes in
             string outputAsText = BytesToString(e.Data);
             PrintLog(String.Format("Infeed {0} Received {1}", (index+1).ToString(),  outputAsText));
-            if (LineInFeeds[index].BufferDataReady(outputAsText))
+            if (LineInFeeds[index].BufferDataUpdated(outputAsText))
             {
                 PrintLog(String.Format("Infeed {0} updated with {1}", (index+1).ToString(), LineInFeeds[index].InFeedData));
-            }
+            } // ignore if string is invalid or the same as last one
         }
 
         static void LineOutFeedNewDataReceived(object sender, SerialDataEventArgs e)
         {
-            /*string outputAsText = BytesToString(e.Data);
-            serialBuffer.AddRange(new List<byte>(e.Data));
-            printLog("Received " + outputAsText);*/
+            string message = "Unexpectedly received " + BytesToString(e.Data);
+            Console.WriteLine(message);
+            AppLogger.Log(LogLevel.INFO, message);
         }
 
         private static void InFeedSwitchConnectedListener(object sender, EventArgs e)
@@ -264,8 +229,8 @@ namespace sevenfloorsdown
             if (current == null) return;
             PrintLog(String.Format("{0}: {1} disconnected", current.IpAddress.ToString(), current.PortNumber));
 
-            PrintLog("Attempting to reconnect");
-            InFeedSwitch.OpenConnection();
+            //PrintLog("Attempting to allow reconnect");
+            //InFeedSwitch.OpenConnection();
         }
 
         private static void InFeedSwitchDataReceiver(object sender, EventArgs e)
@@ -277,9 +242,33 @@ namespace sevenfloorsdown
             ProcessInFeedSwitchMessage(payload);
         }
 
+        private static void OnInFeedSwitchTimeout(Object source, ElapsedEventArgs e)
+        {
+            ErrorMessage("Timeout on TCP infeed connection");
+            // how to re-establish connection?
+        }
+
+        private static void TickOverTimer()
+        {
+            InFeedSwitchTimer.Stop();
+            InFeedSwitchTimer.Start();
+        }
+
         private static void ProcessInFeedSwitchMessage(string payload)
         {
-            // parse message; also do the switching thing to outfeed here
+            if (payload.Equals(HeartbeatMessage)) TickOverTimer();
+            for (int i = 0; i<LineInFeeds.Count; i++)
+            {
+                if (payload.Equals(LineInFeeds[i].SwitchValue))
+                {
+                    string inFeedData = LineInFeeds[i].InFeedData;
+                    if (!String.IsNullOrEmpty(inFeedData))
+                    {
+                        LineOutFeed.CreateOutputMessage(inFeedData);
+                        LineOutFeed.SendOutputMessage();
+                    }
+                }
+            }
         }
 
         public static string BytesToString(byte[] rawData)
@@ -309,7 +298,7 @@ namespace sevenfloorsdown
                 case CtrlTypes.CTRL_BREAK_EVENT:
                 case CtrlTypes.CTRL_SHUTDOWN_EVENT:
                 case CtrlTypes.CTRL_C_EVENT:
-                    //quitLoops = true;
+                    quitLoops = true;
                     ProgramEnd();
                     return true;
             }
@@ -318,12 +307,12 @@ namespace sevenfloorsdown
 
         private static void ProgramEnd()
         {
-            /*if (debuggerCxn != null)
-                debuggerCxn.StopListening();
-            BeaconList.Clear();
-            dbCxn.CloseConnection();
-            satCxn.CloseConnection();*/
-            InFeedSwitch.CloseConnection();
+            foreach (InFeed x in LineInFeeds)
+            {
+                if (x != null) x.Port.StopListening();
+            }
+            if (LineOutFeed != null)  LineOutFeed.Port.StopListening();
+            if (InFeedSwitch != null) InFeedSwitch.CloseConnection();
             PrintLog("Exiting...");
             Environment.Exit(0);
         }

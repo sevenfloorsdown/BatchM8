@@ -9,6 +9,7 @@ namespace sevenfloorsdown
 {
     public class OutFeed
     {
+        private string _outputMessage;
         public SerialPortManager Port { get; set; }
         public string Header { get; set; }
         public string Footer { get; set; }
@@ -18,6 +19,9 @@ namespace sevenfloorsdown
         public int InputPPKLength { get; set; }
         public int OutputPLULength { get; set; }
         public int OutputPPKLength { get; set; }
+        public string OutputMessage {
+            get { return _outputMessage;  }
+        }
 
         public OutFeed(SerialSettings settings)
         {
@@ -25,11 +29,11 @@ namespace sevenfloorsdown
             {
                 Settings = settings
             };
+            _outputMessage = string.Empty;
         }
 
         public string CreateOutputMessage(string inputMessage)
         {
-            string result = String.Empty;
             string plu = String.Empty;
             string ppk = String.Empty;
             try
@@ -50,8 +54,18 @@ namespace sevenfloorsdown
                 throw new Exception(String.Format("Mismatch with input and output PPK lengths: {0} vs {1}, {2}",
                     InputPPKLength.ToString(), OutputPPKLength.ToString(), e.Message));
             }
-            result = InfeedNum + plu + ppk + FixedAsciiData;
-            return result;
+            _outputMessage = InfeedNum + plu + ppk + FixedAsciiData;         
+            return _outputMessage;
+        }
+
+        public void SendOutputMessage(string message)
+        {
+            Port.WriteLine(message);
+        }
+
+        public void SendOutputMessage()
+        {
+            Port.WriteLine(_outputMessage);
         }
 
     }
