@@ -191,7 +191,7 @@ namespace sevenfloorsdown
                 return false;
             }
 
-            HeartbeatMessage = ini.GetSettingString("HeartbeatMessage", "xxxx", section);
+            HeartbeatMessage = ini.GetSettingString("HeartbeatMessage", "xxxx", _section);
             return true;
         }
 
@@ -201,11 +201,12 @@ namespace sevenfloorsdown
         static void LineInFeedCommonDataReceived(int index, SerialDataEventArgs e)
         {
             // collect data until delimiter comes in
-            string outputAsText = BytesToString(e.Data);
-            PrintLog(String.Format("Infeed {0} Received {1}", (index+1).ToString(),  outputAsText));
-            if (LineInFeeds[index].BufferDataUpdated(outputAsText))
+            //string outputAsText = "\u0002061012,1700 \r\n"; // CHIMICHANGA
+            string outputAsText = System.Text.Encoding.UTF8.GetString(e.Data);
+            PrintLog(String.Format("Infeed {0} Received {1}", index.ToString(),  outputAsText));
+            if (LineInFeeds[index-1].BufferDataUpdated(outputAsText))
             {
-                PrintLog(String.Format("Infeed {0} updated with {1}", (index+1).ToString(), LineInFeeds[index].InFeedData));
+                PrintLog(String.Format("Infeed {0} updated with {1}", index.ToString(), LineInFeeds[index-1].InFeedData));
             } // ignore if string is invalid or the same as last one
         }
 
@@ -221,6 +222,7 @@ namespace sevenfloorsdown
             TcpConnection current = (TcpConnection)sender;
             if (current == null) return;
             PrintLog(String.Format("{0}: {1} connected", current.IpAddress.ToString(), current.PortNumber));
+            InFeedSwitchTimer.Start();
         }
 
         private static void InFeedSwitchDisconnectedListener(object sender, EventArgs e)
@@ -264,8 +266,12 @@ namespace sevenfloorsdown
                     string inFeedData = LineInFeeds[i].InFeedData;
                     if (!String.IsNullOrEmpty(inFeedData))
                     {
+                        LineOutFeed.InputPLULength = LineInFeeds[i].PLULength;
+                        LineOutFeed.InputPPKLength = LineInFeeds[i].PPKLength;
+                        LineOutFeed.InfeedNum = LineInFeeds[i].SwitchValue.Substring(1,1);
                         LineOutFeed.CreateOutputMessage(inFeedData);
                         LineOutFeed.SendOutputMessage();
+                        PrintLog(String.Format("Outfeed message: {1}", LineOutFeed.OutputMessage));
                     }
                 }
             }

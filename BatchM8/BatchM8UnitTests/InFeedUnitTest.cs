@@ -86,6 +86,7 @@ namespace sevenfloorsdown
         {
             InitDut();
             string testString = _header + expectedCode + _footer;
+
             Assert.IsTrue(DUT.BufferDataUpdated(testString));
             Assert.AreEqual(expectedCode, DUT.InFeedData);
         }

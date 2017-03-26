@@ -60,12 +60,12 @@ namespace sevenfloorsdown
 
         public void SendOutputMessage(string message)
         {
-            Port.WriteLine(message);
+            Port.WriteLine(Header + message + Footer);
         }
 
         public void SendOutputMessage()
         {
-            Port.WriteLine(_outputMessage);
+            Port.WriteLine(Header + _outputMessage + Footer);
         }
 
     }

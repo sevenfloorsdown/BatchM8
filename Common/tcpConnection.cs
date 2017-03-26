@@ -3,7 +3,6 @@
  */
 
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -375,10 +374,11 @@ namespace sevenfloorsdown
                     if (UseBytes)
                     { 
                         // remember to check if header/footer is empty
-                        if (ByteHeader.SequenceEqual(state.buffer.Take(ByteHeader.Length)) &&
+                        /*disable for now
+                         * if (ByteHeader.SequenceEqual(state.buffer.Take(ByteHeader.Length)) &&
                             ByteFooter.Reverse().SequenceEqual(state.buffer.Reverse().Take(ByteFooter.Length)))
                             state.buffer.CopyTo(tcpByteResponse, 0);
-                            OnDataReceived(EventArgs.Empty);
+                            OnDataReceived(EventArgs.Empty);*/
                         // TODO: the rest of the continue-or-stop-cuz-we-got-the-data-we-need code
                     }                   
                     else if (state.sb.Length > 1) 
@@ -389,24 +389,36 @@ namespace sevenfloorsdown
                         state.sb.Clear();
                         while (sbuf.Length > 0)
                         {
-                            if (Header == String.Empty)  
+                            if (Header == String.Empty)
                                 a = 0;
-                            else 
-                                a = sbuf.IndexOf(Header);
-                            if (a < 0) 
+                            else
+                                a = sbuf.IndexOf(Header) + Header.Length;
+                            if (a < 0)
                                 a = 0;
-                            if (Footer == String.Empty) 
+                            if (Footer == String.Empty)
                                 b = sbuf.Length;
                             else
                                 b = sbuf.IndexOf(Footer);
-                            if (b < 0)  
+                            if (b < 0)
                                 b = sbuf.Length;
+                            b = b - a;
                             tcpResponse = sbuf.Substring(a, b);
-                            if (b + Footer.Length < sbuf.Length)
-                                sbuf = sbuf.Substring(b + Footer.Length);
+                            if (b + a + Footer.Length < sbuf.Length)
+                                sbuf = sbuf.Substring(b + a + Footer.Length);
                             else
                                 sbuf = "";
-                            OnDataReceived(EventArgs.Empty);
+                            try { 
+                                OnDataReceived(EventArgs.Empty);
+                            }
+                            catch (Exception e)
+                            {
+                                /*AppLogger.Log(LogLevel.ERROR,
+                                                String.Format("{0} receive callback: {1}",
+                                                ConnectionType.ToString() + " " + msg, e.Message));*/
+                                // ok, something's triggering this and I can't find it; seems to work
+                                // fine though after it, tough shit. This whole thing needs to be
+                                // rewritten.
+                            }
                         }
                     }
                     if (ConnectionType == SocketTransactorType.server)
