@@ -270,8 +270,8 @@ namespace sevenfloorsdown
                         LineOutFeed.InputPPKLength = LineInFeeds[i].PPKLength;
                         LineOutFeed.InfeedNum = LineInFeeds[i].SwitchValue.Substring(1,1);
                         LineOutFeed.CreateOutputMessage(inFeedData);
+                        PrintLog(String.Format("Outfeed message: {0}", LineOutFeed.OutputMessage));
                         LineOutFeed.SendOutputMessage();
-                        PrintLog(String.Format("Outfeed message: {1}", LineOutFeed.OutputMessage));
                     }
                 }
             }
