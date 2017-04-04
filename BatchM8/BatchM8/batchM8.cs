@@ -48,6 +48,9 @@ namespace sevenfloorsdown
     class BatchM8
     {
         static Mutex mutex = new Mutex(true, "1659aff2-7d2c-48f5-8557-a4efd694d16d");
+        static string versionInfo = "1.0.0.0";
+        static string displayName = "BatchM8";
+        static string showInfo = displayName + " v: " + versionInfo;
 
         public enum CtrlTypes
         {
@@ -70,6 +73,8 @@ namespace sevenfloorsdown
         public static extern bool SetConsoleCtrlHandler(HandlerRoutine Handler, bool Add);
 
         public delegate bool HandlerRoutine(CtrlTypes CtrlType);
+
+        static readonly EventWaitHandle _infiniteLoop = new EventWaitHandle(false, EventResetMode.ManualReset, "InfiniteLooper");
 
         [STAThread]
         static void Main(string[] args)
@@ -97,13 +102,21 @@ namespace sevenfloorsdown
                             ini.GetSettingString("DateTimeFormat", "dd/MM/yyyy hh:mm:ss.fff", "Logging"));
             AppLogger.CurrentLevel = AppLogger.ConvertToLogLevel(ini.GetSettingString("LogLevel", "Verbose", "Logging"));
 
+            int n = showInfo.Length;
+            string filler = new string('*', n);
+            Console.Title = showInfo;
+            PrintLog(filler);
+            PrintLog(showInfo);
+            PrintLog(filler);
+
             if (InitializePorts())
             {
                 PrintLog("Starting infeeds and outfeed");
                 foreach (InFeed x in LineInFeeds) x.Port.StartListening();
                 LineOutFeed.Port.StartListening();
 
-                while (!quitLoops) { } // let the event handlers do their thing
+                //while (!quitLoops) { } // let the event handlers do their thing
+                _infiniteLoop.WaitOne();
             }
         }
 
@@ -305,6 +318,7 @@ namespace sevenfloorsdown
                 case CtrlTypes.CTRL_SHUTDOWN_EVENT:
                 case CtrlTypes.CTRL_C_EVENT:
                     quitLoops = true;
+                    _infiniteLoop.Set();
                     ProgramEnd();
                     return true;
             }
