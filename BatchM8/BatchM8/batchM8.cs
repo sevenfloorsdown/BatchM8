@@ -48,9 +48,10 @@ namespace sevenfloorsdown
     class BatchM8
     {
         static Mutex mutex = new Mutex(true, "1659aff2-7d2c-48f5-8557-a4efd694d16d");
-        static string versionInfo = "1.0.0.0";
+        static string versionInfo = "1.0.0.1";
         static string displayName = "BatchM8";
         static string showInfo = displayName + " v: " + versionInfo;
+        static string exitPrompt = "\nPress any key to continue";
 
         public enum CtrlTypes
         {
@@ -112,9 +113,17 @@ namespace sevenfloorsdown
             if (InitializePorts())
             {
                 PrintLog("Starting infeeds and outfeed");
-                foreach (InFeed x in LineInFeeds) x.Port.StartListening();
-                LineOutFeed.Port.StartListening();
-
+                try
+                {
+                    foreach (InFeed x in LineInFeeds) x.Port.StartListening();
+                    LineOutFeed.Port.StartListening();
+                } 
+                catch (Exception e)
+                {
+                    ErrorMessage(e.Message + exitPrompt);
+                    ProgramEnd();
+                    return;
+                }
                 //while (!quitLoops) { } // let the event handlers do their thing
                 _infiniteLoop.WaitOne();
             }
@@ -172,7 +181,7 @@ namespace sevenfloorsdown
                 }
                 catch (Exception e)
                 {
-                    ErrorMessage(String.Format("Failed setting serial {0} settings: {1}", section[j], e.Message));
+                    ErrorMessage(String.Format("Failed setting serial {0} settings: {1}{2}.", section[j], e.Message, exitPrompt));
                     return false;
                 }
             }
@@ -221,6 +230,10 @@ namespace sevenfloorsdown
             {
                 PrintLog(String.Format("Infeed {0} updated with {1}", index.ToString(), LineInFeeds[index-1].InFeedData));
             } // ignore if string is invalid or the same as last one
+            else
+            {
+                PrintLog(String.Format("Infeed {0} invalid data: {1}", index.ToString(), outputAsText));
+            }
         }
 
         static void LineOutFeedNewDataReceived(object sender, SerialDataEventArgs e)

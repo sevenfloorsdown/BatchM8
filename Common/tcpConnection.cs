@@ -55,6 +55,7 @@ namespace sevenfloorsdown
         private bool RunningInBG;
         private bool AbruptDisconnect;
         private int ReconnectRetry;
+        private int currentNumConnections;
         #endregion
 
         #region Events
@@ -74,14 +75,14 @@ namespace sevenfloorsdown
         #region Event Handlers
         protected virtual void OnTcpConnected(EventArgs e)    
         {
-            //if (TcpConnected != null) TcpConnected(this, e);
             TcpConnected?.Invoke(this, e);
             ReconnectRetry = 0;
+            currentNumConnections += 1;
         }
 
         protected virtual void OnTcpDisconnected(EventArgs e) 
         {
-            //if (TcpDisconnected != null) TcpDisconnected(this, e);
+            currentNumConnections -= 1;
             TcpDisconnected?.Invoke(this, e);
             if (AbruptDisconnect)
             {
@@ -113,11 +114,11 @@ namespace sevenfloorsdown
             if (BufferSize == 0) BufferSize = 1024;
 
             MessageEncoding = Encoding.ASCII;  // default, for now
-            MaxNumConnections = 10;            // arbitrary default
+            if (MaxNumConnections < 1) MaxNumConnections = 10;            // arbitrary default
             NumReconnectRetries = 1;
             AbruptDisconnect = false;
             ReconnectRetry = NumReconnectRetries;
-
+            currentNumConnections = 0;
             OpenConnection();
         }
 
@@ -155,14 +156,14 @@ namespace sevenfloorsdown
                     listener.Close();
                     OnTcpDisconnected(EventArgs.Empty);
                     AppLogger.Log(LogLevel.VERBOSE,
-                                  String.Format("{0} closed.", ConnectionType.ToString()));
+                                  String.Format("{0} closed.", ConnectionType.ToString()));                  
                 }
                 catch (Exception e)
                 {
                     AppLogger.Log(LogLevel.ERROR,
                                   String.Format("Problem {0} {1} opening connection: {2}",
                                                  ConnectionType.ToString(), msg, e.Message));
-                }
+                }              
             }
             else if (ConnectionType == SocketTransactorType.client)
             {
@@ -216,16 +217,26 @@ namespace sevenfloorsdown
         
         private void AcceptCallback(IAsyncResult asyncResult)
         {
-            Socket listener = (Socket)asyncResult.AsyncState;
-            Socket handler = listener.EndAccept(asyncResult);
-            allDone.Set();
-            tcpSocket = handler; // for sending
-            StateObject state = new StateObject(BufferSize);
-            state.workSocket = handler;
+            if (currentNumConnections < MaxNumConnections)
+            {
+                Socket listener = (Socket)asyncResult.AsyncState;
+                Socket handler = listener.EndAccept(asyncResult);
+                allDone.Set();
+                tcpSocket = handler; // for sending
+                StateObject state = new StateObject(BufferSize);
+                state.workSocket = handler;
 
-            OnTcpConnected(EventArgs.Empty);
-            handler.BeginReceive(state.buffer, 0, BufferSize, 0,
-                new AsyncCallback(ReceiveCallback), state);
+                OnTcpConnected(EventArgs.Empty);
+                handler.BeginReceive(state.buffer, 0, BufferSize, 0,
+                    new AsyncCallback(ReceiveCallback), state);
+            }
+            else
+            {
+                AppLogger.Log(LogLevel.DEBUG,
+                String.Format("{0} {1} {2}",
+                               ConnectionType.ToString(),
+                               "Exceeded max number of connections", MaxNumConnections.ToString()));
+            }
         }
 
         private void ConnectCallback(IAsyncResult asyncResult)

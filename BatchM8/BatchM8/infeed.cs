@@ -26,6 +26,8 @@ namespace sevenfloorsdown
             set
             {
                 pattern = value;
+                if (!String.IsNullOrEmpty(value.Trim()))
+                    CheckMessageFormat = true;
                 inRegex = new Regex(value, RegexOptions.None);
             }
         }

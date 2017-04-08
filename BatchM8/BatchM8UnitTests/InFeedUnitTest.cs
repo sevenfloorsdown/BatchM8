@@ -24,7 +24,7 @@ namespace sevenfloorsdown
             {
                 Header = _header,
                 Footer = _footer,
-                MessageFormat = "^[0-9a-zA-z]{6,6},[0-9]{4,4} $",
+                MessageFormat = "^[0-9a-zA-z]{6,6}$",//"^[0-9a-zA-z]{6,6},[0-9]{4,4} $",
                 CheckMessageFormat = false
             };
         }
@@ -74,12 +74,21 @@ namespace sevenfloorsdown
         [TestMethod]
         public void RegexTest5()
         {
-            InitDut();
+            InitDutCheckFormat();
             string testString = _header + "arbitrary string" + _footer;
-            Assert.IsTrue(DUT.BufferDataUpdated(testString));
             Assert.IsFalse(DUT.IsInCorrectFormat(testString));
+            Assert.IsFalse(DUT.BufferDataUpdated(testString));
         }
-    
+
+        [TestMethod]
+        public void RegexTest6()
+        {
+            InitDutCheckFormat();
+            string testString = _header + "1234567,0458" + _footer;
+            Assert.IsFalse(DUT.IsInCorrectFormat(testString));
+            Assert.IsFalse(DUT.BufferDataUpdated(testString));
+
+        }
 
         [TestMethod]
         public void SimpleInputTest1()
