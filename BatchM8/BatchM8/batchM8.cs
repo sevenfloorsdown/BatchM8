@@ -63,6 +63,7 @@ namespace sevenfloorsdown
         }
 
         private static bool quitLoops = false;
+        private static bool useTimer = false;
         private static settingsJSONutils ini;
         private static List<InFeed> LineInFeeds;
         private static OutFeed LineOutFeed;
@@ -201,8 +202,14 @@ namespace sevenfloorsdown
                     Header = StringUtils.ParseIntoASCII(ini.GetSettingString("Header", "", _section)),
                     Footer = StringUtils.ParseIntoASCII(ini.GetSettingString("Footer", "", _section))              
                 };
-                int timeout = ini.GetSettingInteger("TimeoutSec", 30, _section) * 1000;
-                InFeedSwitchTimer = new System.Timers.Timer(timeout);
+                int timeout = ini.GetSettingInteger("TimeoutSec", 30, _section) * 1000; 
+                if (timeout > 0)
+                {
+                    useTimer = true;
+                    timeout += 100; // allow a 100ms allowance
+                    InFeedSwitchTimer = new System.Timers.Timer(timeout);
+                    InFeedSwitchTimer.Elapsed += OnInFeedSwitchTimeout;
+                }
                 InFeedSwitch.TcpConnected += new TcpEventHandler(InFeedSwitchConnectedListener);
                 InFeedSwitch.TcpDisconnected += new TcpEventHandler(InFeedSwitchDisconnectedListener);
                 InFeedSwitch.DataReceived += new TcpEventHandler(InFeedSwitchDataReceiver);
@@ -223,7 +230,6 @@ namespace sevenfloorsdown
         static void LineInFeedCommonDataReceived(int index, SerialDataEventArgs e)
         {
             // collect data until delimiter comes in
-            //string outputAsText = "\u0002061012,1700 \r\n"; // CHIMICHANGA
             string outputAsText = System.Text.Encoding.UTF8.GetString(e.Data);
             PrintLog(String.Format("Infeed {0} Received {1}", index.ToString(),  outputAsText));
             if (LineInFeeds[index-1].BufferDataUpdated(outputAsText))
@@ -248,7 +254,7 @@ namespace sevenfloorsdown
             TcpConnection current = (TcpConnection)sender;
             if (current == null) return;
             PrintLog(String.Format("{0}: {1} connected", current.IpAddress.ToString(), current.PortNumber));
-            InFeedSwitchTimer.Start();
+            if (useTimer) InFeedSwitchTimer.Start();
         }
 
         private static void InFeedSwitchDisconnectedListener(object sender, EventArgs e)
@@ -256,7 +262,7 @@ namespace sevenfloorsdown
             TcpConnection current = (TcpConnection)sender;
             if (current == null) return;
             PrintLog(String.Format("{0}: {1} disconnected", current.IpAddress.ToString(), current.PortNumber));
-
+            if (useTimer) InFeedSwitchTimer.Stop();
             //PrintLog("Attempting to allow reconnect");
             //InFeedSwitch.OpenConnection();
         }
@@ -289,6 +295,7 @@ namespace sevenfloorsdown
             {
                 if (payload.Equals(LineInFeeds[i].SwitchValue))
                 {
+                    if (useTimer) InFeedSwitchTimer.Stop();
                     string inFeedData = LineInFeeds[i].InFeedData;
                     if (!String.IsNullOrEmpty(inFeedData))
                     {
@@ -299,6 +306,7 @@ namespace sevenfloorsdown
                         PrintLog(String.Format("Outfeed message: {0}", LineOutFeed.OutputMessage));
                         LineOutFeed.SendOutputMessage();
                     }
+                    if (useTimer) InFeedSwitchTimer.Start();
                 }
             }
         }
