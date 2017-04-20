@@ -94,8 +94,8 @@ namespace sevenfloorsdown
                 AbruptDisconnect = false;
             }
         }
-        protected virtual void OnDataReceived(EventArgs e)    { if (DataReceived    != null) DataReceived(this, e);    }
-        protected virtual void OnGeneralUseEvent(EventArgs e) { if (GeneralUseEvent != null) GeneralUseEvent(this, e); }
+        protected virtual void OnDataReceived(EventArgs e)    { DataReceived?.Invoke(this, e); }
+        protected virtual void OnGeneralUseEvent(EventArgs e) { GeneralUseEvent?.Invoke(this, e); }
         #endregion
 
         public TcpConnection(SocketTransactorType myConnection,
@@ -217,14 +217,17 @@ namespace sevenfloorsdown
         
         private void AcceptCallback(IAsyncResult asyncResult)
         {
+            Socket listener = (Socket)asyncResult.AsyncState;
+            Socket handler = listener.EndAccept(asyncResult);
+
             if (currentNumConnections < MaxNumConnections)
             {
-                Socket listener = (Socket)asyncResult.AsyncState;
-                Socket handler = listener.EndAccept(asyncResult);
                 allDone.Set();
                 tcpSocket = handler; // for sending
-                StateObject state = new StateObject(BufferSize);
-                state.workSocket = handler;
+                StateObject state = new StateObject(BufferSize)
+                {
+                    workSocket = handler
+                };
 
                 OnTcpConnected(EventArgs.Empty);
                 handler.BeginReceive(state.buffer, 0, BufferSize, 0,
@@ -232,6 +235,9 @@ namespace sevenfloorsdown
             }
             else
             {
+                handler.Disconnect(false);
+                handler.Close();
+                
                 AppLogger.Log(LogLevel.DEBUG,
                 String.Format("{0} {1} {2}",
                                ConnectionType.ToString(),
